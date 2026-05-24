@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+  <title>Secure Image Encryption App</title>
+
+  <!-- CryptoJS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+
+  <style>
+
+    *{
+      margin:0;
+      padding:0;
+      box-sizing:border-box;
+      font-family:Arial, sans-serif;
+    }
+
+    body{
+      background:linear-gradient(135deg,#0f172a,#1e293b);
+      color:white;
+      min-height:100vh;
+      padding:30px;
+    }
+
+    .container{
+      max-width:1100px;
+      margin:auto;
+    }
+
+    h1{
+      text-align:center;
+      margin-bottom:10px;
+      color:#a855f7;
+    }
+
+    .subtitle{
+      text-align:center;
+      color:#cbd5e1;
+      margin-bottom:35px;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:25px;
+    }
+
+    .card{
+      background:#111827;
+      padding:25px;
+      border-radius:18px;
+      box-shadow:0 0 20px rgba(0,0,0,0.4);
+    }
+
+    h2{
+      color:#c084fc;
+      margin-bottom:18px;
+    }
+
+    input, select{
+      width:100%;
+      padding:12px;
+      border:none;
+      border-radius:10px;
+      margin-bottom:15px;
+      background:#1e293b;
+      color:white;
+      font-size:15px;
+      outline:none;
+    }
+
+    button{
+      width:100%;
+      padding:14px;
+      border:none;
+      border-radius:12px;
+      cursor:pointer;
+      background:linear-gradient(135deg,#9333ea,#7e22ce);
+      color:white;
+      font-size:16px;
+      font-weight:bold;
+      transition:0.3s;
+      margin-top:10px;
+    }
+
+    button:hover{
+      transform:scale(1.02);
+      opacity:0.92;
+    }
+
+    .preview{
+      width:100%;
+      height:250px;
+      border-radius:15px;
+      background:#0f172a;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      overflow:hidden;
+      margin-top:15px;
+    }
+
+    .preview img{
+      width:100%;
+      height:100%;
+      object-fit:contain;
+    }
+
+    .output{
+      margin-top:15px;
+      background:#0f172a;
+      padding:12px;
+      border-radius:12px;
+      min-height:100px;
+      overflow:auto;
+      word-break:break-all;
+      color:#e2e8f0;
+    }
+
+    .info{
+      margin-top:35px;
+      background:#111827;
+      padding:25px;
+      border-radius:18px;
+      line-height:1.8;
+    }
+
+    .success{
+      color:#4ade80;
+      font-weight:bold;
+    }
+
+    @media(max-width:850px){
+      .grid{
+        grid-template-columns:1fr;
+      }
+    }
+
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+
+    <h1>🖼️ Secure Image Encryption App</h1>
+
+    <p class="subtitle">
+      Encrypt and decrypt images securely using AES encryption with random IV and salt
+    </p>
+
+    <div class="grid">
+
+      <!-- Encrypt -->
+      <div class="card">
+
+        <h2>Encrypt Image</h2>
+
+        <input type="file" id="imageInput" accept="image/*">
+
+        <input type="password" id="encryptPassword" placeholder="Enter Secret Password">
+
+        <select id="cipherMode">
+          <option value="AES">AES Encryption</option>
+        </select>
+
+        <button onclick="encryptImage()">
+          Encrypt Image
+        </button>
+
+        <div class="preview" id="originalPreview">
+          Original Image Preview
+        </div>
+
+        <div class="output" id="encryptedOutput">
+          Encrypted image data will appear here...
+        </div>
+
+      </div>
+
+      <!-- Decrypt -->
+      <div class="card">
+
+        <h2>Decrypt Image</h2>
+
+        <input type="file" id="encryptedFile" accept=".txt">
+
+        <input type="password" id="decryptPassword" placeholder="Enter Secret Password">
+
+        <button onclick="decryptImage()">
+          Decrypt Image
+        </button>
+
+        <div class="preview" id="decryptedPreview">
+          Decrypted Image Preview
+        </div>
+
+        <button onclick="downloadEncrypted()">
+          Download Encrypted File
+        </button>
+
+      </div>
+
+    </div>
+
+    <div class="info">
+
+      <h2>📘 Project Explanation</h2>
+
+      <p>
+        This project securely encrypts image binary data using AES encryption.
+      </p>
+
+      <br>
+
+      <p class="success">
+        ✅ Random IV + Random Salt ensures unique encrypted output for same image
+      </p>
+
+      <br>
+
+      <h3>Learning Outcomes</h3>
+
+      <p>• Binary data encryption</p>
+      <p>• AES symmetric cryptography</p>
+      <p>• Random IV handling</p>
+      <p>• Secure password-based key generation</p>
+      <p>• File encryption concepts</p>
+
+    </div>
+
+  </div>
+
+  <script>
+
+    let encryptedDataGlobal = "";
+
+    // Show Original Preview
+    document.getElementById("imageInput")
+      .addEventListener("change", function(e){
+
+      const file = e.target.files[0];
+
+      if(!file) return;
+
+      const reader = new FileReader();
+
+      reader.onload = function(event){
+
+        document.getElementById("originalPreview").innerHTML =
+          `<img src="${event.target.result}">`;
+
+      };
+
+      reader.readAsDataURL(file);
+
+    });
+
+
+    async function encryptImage(){
+
+      const file =
+        document.getElementById("imageInput").files[0];
+
+      const password =
+        document.getElementById("encryptPassword").value;
+
+      if(!file || !password){
+        alert("Please select image and password");
+        return;
+      }
+
+      const reader = new FileReader();
+
+      reader.onload = function(e){
+
+        const imageBase64 = e.target.result;
+
+        // Random Salt
+        const salt =
+          CryptoJS.lib.WordArray.random(128/8);
+
+        // Random IV
+        const iv =
+          CryptoJS.lib.WordArray.random(128/8);
+
+        // PBKDF2 Key
+        const key = CryptoJS.PBKDF2(password, salt, {
+          keySize: 256/32,
+          iterations: 1000
+        });
+
+        // Encrypt
+        const encrypted = CryptoJS.AES.encrypt(
+          imageBase64,
+          key,
+          { iv: iv }
+        );
+
+        encryptedDataGlobal =
+          salt.toString() + ":" +
+          iv.toString() + ":" +
+          encrypted.toString();
+
+        document.getElementById("encryptedOutput")
+          .innerText = encryptedDataGlobal;
+
+        alert("Image Encrypted Successfully!");
+
+      };
+
+      reader.readAsDataURL(file);
+    }
+
+
+    function decryptImage(){
+
+      const file =
+        document.getElementById("encryptedFile").files[0];
+
+      const password =
+        document.getElementById("decryptPassword").value;
+
+      if(!file || !password){
+        alert("Please upload encrypted file and password");
+        return;
+      }
+
+      const reader = new FileReader();
+
+      reader.onload = function(e){
+
+        try{
+
+          const encryptedText = e.target.result;
+
+          const parts = encryptedText.split(":");
+
+          const salt =
+            CryptoJS.enc.Hex.parse(parts[0]);
+
+          const iv =
+            CryptoJS.enc.Hex.parse(parts[1]);
+
+          const encrypted =
+            parts[2];
+
+          const key = CryptoJS.PBKDF2(password, salt, {
+            keySize: 256/32,
+            iterations:1000
+          });
+
+          const decrypted =
+            CryptoJS.AES.decrypt(
+              encrypted,
+              key,
+              { iv: iv }
+            );
+
+          const original =
+            decrypted.toString(CryptoJS.enc.Utf8);
+
+          if(!original){
+            throw new Error();
+          }
+
+          document.getElementById("decryptedPreview")
+            .innerHTML =
+            `<img src="${original}">`;
+
+          alert("Image Decrypted Successfully!");
+
+        }catch(err){
+
+          alert("Invalid password or corrupted file");
+
+        }
+
+      };
+
+      reader.readAsText(file);
+
+    }
+
+
+    function downloadEncrypted(){
+
+      if(!encryptedDataGlobal){
+        alert("Encrypt image first");
+        return;
+      }
+
+      const blob = new Blob(
+        [encryptedDataGlobal],
+        {type:"text/plain"}
+      );
+
+      const link = document.createElement("a");
+
+      link.href = URL.createObjectURL(blob);
+
+      link.download = "encrypted_image.txt";
+
+      link.click();
+    }
+
+  </script>
+
+</body>
+</html>
